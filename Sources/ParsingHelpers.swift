@@ -906,6 +906,7 @@ extension Formatter {
 
                 let mode: WrapMode
                 var endOfScopeOnSameLine = false
+                var isParameters = false
                 switch scopeType {
                 case "(":
                     guard index(of: .delimiter, in: i + 1 ..< endOfScope) != nil else {
@@ -913,7 +914,8 @@ extension Formatter {
                         return
                     }
                     endOfScopeOnSameLine = options.closingParenOnSameLine
-                    mode = isParameterList(at: i) ? options.wrapParameters : options.wrapArguments
+                    isParameters = isParameterList(at: i)
+                    mode = isParameters ? options.wrapParameters : options.wrapArguments
                 case "<":
                     mode = options.wrapArguments
                 case "[":
@@ -950,15 +952,18 @@ extension Formatter {
                 } else if maxWidth > 0,
                     maxWidth < lineLengthToNextWrap(),
                     !willWrapAtStartOfReturnType(maxWidth: maxWidth) {
-                    if mode == .beforeFirst {
+                    switch mode {
+                    case .preserve where isParameters, .beforeFirst:
                         wrapArgumentsBeforeFirst(startOfScope: i,
                                                  endOfScope: endOfScope,
                                                  allowGrouping: false,
                                                  endOfScopeOnSameLine: endOfScopeOnSameLine)
-                    } else {
+                    case .afterFirst, .preserve:
                         wrapArgumentsAfterFirst(startOfScope: i,
                                                 endOfScope: endOfScope,
                                                 allowGrouping: true)
+                    case .disabled, .default:
+                        assertionFailure() // Shouldn't happen
                     }
                 }
             }
