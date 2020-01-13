@@ -7380,7 +7380,9 @@ class RulesTests: XCTestCase {
                        exclude: ["spaceAroundOperators"])
     }
 
-    // MARK: - wrapArguments --wrapParameters
+    // MARK: - wrapArguments
+
+    // MARK: wrapParameters
 
     func testWrapParametersDoesNotAffectFunctionDeclaration() {
         let input = "foo(\n    bar _: Int,\n    baz _: String\n)"
@@ -7932,9 +7934,29 @@ class RulesTests: XCTestCase {
         }
         """
         let options = FormatOptions(wrapParameters: .beforeFirst, maxWidth: 30)
-        testFormatting(for: input, [output],
-                       rules: [FormatRules.wrapArguments],
+        testFormatting(for: input, [output], rules: [FormatRules.wrapArguments],
                        options: options)
+    }
+
+    func testNoWrapSubscriptWithSingleElement() {
+        let input = "guard let foo = bar[0] {}"
+        let options = FormatOptions(wrapCollections: .beforeFirst, maxWidth: 20)
+        testFormatting(for: input, rule: FormatRules.wrapArguments, options: options,
+                       exclude: ["wrap"])
+    }
+
+    func testNoWrapArrayWithSingleElement() {
+        let input = "let foo = [0]"
+        let options = FormatOptions(wrapCollections: .beforeFirst, maxWidth: 11)
+        testFormatting(for: input, rule: FormatRules.wrapArguments, options: options,
+                       exclude: ["wrap"])
+    }
+
+    func testNoWrapDictionaryWithSingleElement() {
+        let input = "let foo = [bar: baz]"
+        let options = FormatOptions(wrapCollections: .beforeFirst, maxWidth: 15)
+        testFormatting(for: input, rule: FormatRules.wrapArguments, options: options,
+                       exclude: ["wrap"])
     }
 
     // MARK: closingParenOnSameLine = true
@@ -8079,7 +8101,7 @@ class RulesTests: XCTestCase {
         testFormatting(for: input, output, rule: FormatRules.wrapArguments, options: options)
     }
 
-    // MARK: - --wrapArguments & --wrapParameter
+    // MARK: --wrapArguments, --wrapParameters
 
     // MARK: beforeFirst
 

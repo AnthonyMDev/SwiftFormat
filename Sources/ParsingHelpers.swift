@@ -951,6 +951,7 @@ extension Formatter {
                     }
                 } else if maxWidth > 0,
                     maxWidth < lineLengthToNextWrap(),
+                    tokens[i + 1 ..< endOfScope].contains(.delimiter(",")),
                     !willWrapAtStartOfReturnType(maxWidth: maxWidth) {
                     switch mode {
                     case .preserve where isParameters, .beforeFirst:
