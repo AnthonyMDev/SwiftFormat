@@ -1612,6 +1612,8 @@ extension RulesTests {
         ("testWrapArgumentsAfterFirst", testWrapArgumentsAfterFirst),
         ("testWrapArgumentsConvertBeforeFirstToAfterFirst", testWrapArgumentsConvertBeforeFirstToAfterFirst),
         ("testWrapArgumentsDoesNotAffectFunctionDeclaration", testWrapArgumentsDoesNotAffectFunctionDeclaration),
+        ("testWrapArgumentsDoesNotAffectInit", testWrapArgumentsDoesNotAffectInit),
+        ("testWrapArgumentsDoesNotAffectSubscript", testWrapArgumentsDoesNotAffectSubscript),
         ("testWrapBeforeFirstIfMaxLengthExceeded", testWrapBeforeFirstIfMaxLengthExceeded),
         ("testWrapClosure", testWrapClosure),
         ("testWrapClosure2", testWrapClosure2),

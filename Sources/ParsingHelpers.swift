@@ -247,6 +247,7 @@ extension Formatter {
         }
     }
 
+    /// Returns true if token is inside the return type of a function or subscript
     func isInReturnType(at i: Int) -> Bool {
         return startOfReturnType(at: i) != nil
     }
@@ -254,11 +255,12 @@ extension Formatter {
     /// Returns the index of the `->` operator for the current return type declaration if
     /// the specified index is a return type declaration.
     func startOfReturnType(at i: Int) -> Int? {
-        guard let startOfFuncDeclaration = indexOfLastSignificantKeyword(at: i),
-            token(at: startOfFuncDeclaration) == .keyword("func") else {
+        guard let startIndex = indexOfLastSignificantKeyword(at: i), [
+            .keyword("func"), .keyword("subscript"),
+        ].contains(tokens[startIndex]) else {
             return nil
         }
-        return index(of: .operator("->", .infix), in: startOfFuncDeclaration + 1 ..< i)
+        return index(of: .operator("->", .infix), in: startIndex + 1 ..< i)
     }
 
     func isStartOfClosure(at i: Int, in _: Token? = nil) -> Bool {
@@ -672,8 +674,9 @@ extension Formatter {
             [.operator("->", .infix), .keyword("throws"), .keyword("rethrows")].contains(nextToken) {
             return true
         }
-        if let funcIndex = index(of: .keyword, before: i, if: { $0 == .keyword("func") }),
-            lastIndex(of: .endOfScope("}"), in: funcIndex ..< i) == nil {
+        if let funcIndex = index(of: .keyword, before: i, if: {
+            [.keyword("func"), .keyword("init"), .keyword("subscript")].contains($0)
+        }), lastIndex(of: .endOfScope("}"), in: funcIndex ..< i) == nil {
             // Is parameters at start of function
             return true
         }
