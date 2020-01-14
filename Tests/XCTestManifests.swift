@@ -1603,6 +1603,7 @@ extension RulesTests {
         ("testWrapArgumentsBeforeFirstWhenArgumentsExceedMaxWidthAndArgumentIsCollection", testWrapArgumentsBeforeFirstWhenArgumentsExceedMaxWidthAndArgumentIsCollection),
         ("testWrapArgumentsConvertBeforeFirstToAfterFirst", testWrapArgumentsConvertBeforeFirstToAfterFirst),
         ("testWrapArgumentsDoesNotAffectFunctionDeclaration", testWrapArgumentsDoesNotAffectFunctionDeclaration),
+        ("testWrapArgumentsDoesNotAffectLessThanOperator", testWrapArgumentsDoesNotAffectLessThanOperator),
         ("testWrapBeforeFirstIfMaxLengthExceeded", testWrapBeforeFirstIfMaxLengthExceeded),
         ("testWrapChainedFunctionAfterSubscriptCollection", testWrapChainedFunctionAfterSubscriptCollection),
         ("testWrapChainedFunctionInSubscriptCollection", testWrapChainedFunctionInSubscriptCollection),

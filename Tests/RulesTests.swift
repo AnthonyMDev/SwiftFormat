@@ -7991,6 +7991,18 @@ class RulesTests: XCTestCase {
         testFormatting(for: input, output, rule: FormatRules.wrapArguments, options: options)
     }
 
+    // MARK: preserve
+
+    func testWrapArgumentsDoesNotAffectLessThanOperator() {
+        let input = """
+        func foo() {
+            guard foo < bar.count else { return nil }
+        }
+        """
+        let options = FormatOptions(wrapArguments: .preserve)
+        testFormatting(for: input, rule: FormatRules.wrapArguments, options: options)
+    }
+
     // MARK: - --wrapArguments & --wrapParameter
 
     // MARK: beforeFirst

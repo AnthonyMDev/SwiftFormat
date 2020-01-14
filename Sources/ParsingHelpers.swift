@@ -865,12 +865,14 @@ extension Formatter {
 
         func nextStartOfScope() -> Int? {
             return ((lastIndex + 1) ..< tokens.count)
-                .first(where: { ["(", "[", "<"].contains(tokens[$0].string) })
+                .first {
+                    let token = tokens[$0]
+                    return token.isStartOfScope && ["(", "[", "<"].contains(token.string)
+                }
         }
 
         while let i = nextStartOfScope() {
-            guard let token = self.token(at: i),
-                ["(", "[", "<"].contains(token.string) else {
+            guard let token = self.token(at: i) else {
                 lastIndex = i
                 continue
             }
