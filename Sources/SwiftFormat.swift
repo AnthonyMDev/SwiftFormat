@@ -452,7 +452,7 @@ private func applyRules(
     var changes = [Formatter.Change]()
     for _ in 0 ..< maxIterations {
         let formatter = Formatter(tokens, options: options, trackChanges: trackChanges)
-        for (i, rule) in rules.enumerated() {
+        for (i, rule) in rules.sorted().enumerated() {
             queue.async(group: group) {
                 rule.apply(with: formatter)
             }
