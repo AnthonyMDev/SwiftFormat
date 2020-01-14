@@ -1595,6 +1595,8 @@ extension RulesTests {
         ("testWrapAfterFirstIfMaxLengthExceeded3WithWrap", testWrapAfterFirstIfMaxLengthExceeded3WithWrap),
         ("testWrapAfterFirstIfMaxLengthExceeded4WithWrap", testWrapAfterFirstIfMaxLengthExceeded4WithWrap),
         ("testWrapAfterFirstIfMaxLengthExceededInClassScopeWithWrap", testWrapAfterFirstIfMaxLengthExceededInClassScopeWithWrap),
+        ("testWrapAfterFirstWhenChainedFunctionAndThenArgumentsExceedMaxWidth", testWrapAfterFirstWhenChainedFunctionAndThenArgumentsExceedMaxWidth),
+        ("testWrapAfterFirstWrapCollectionsBeforeFirstWhenChainedFunctionAndThenArgumentsExceedMaxWidth", testWrapAfterFirstWrapCollectionsBeforeFirstWhenChainedFunctionAndThenArgumentsExceedMaxWidth),
         ("testWrapAlreadyWrappedArgumentsIfMaxLengthExceeded", testWrapAlreadyWrappedArgumentsIfMaxLengthExceeded),
         ("testWrapArgumentsAfterFirst", testWrapArgumentsAfterFirst),
         ("testWrapArgumentsAfterFirstWhenArgumentsExceedMaxWidthAndArgumentIsCollection", testWrapArgumentsAfterFirstWhenArgumentsExceedMaxWidthAndArgumentIsCollection),

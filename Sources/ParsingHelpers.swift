@@ -792,7 +792,7 @@ extension Formatter {
             if tokens[index] != .delimiter(",") {
                 index += 1
             }
-            while let commaIndex = lastIndex(of: .delimiter(","), in: i + 1 ..< index),
+            while let commaIndex = self.lastIndex(of: .delimiter(","), in: i + 1 ..< index),
                 var linebreakIndex = self.index(of: .nonSpaceOrComment, after: commaIndex) {
                 if let index = self.index(of: .nonSpace, before: linebreakIndex) {
                     linebreakIndex = index + 1
@@ -831,7 +831,7 @@ extension Formatter {
             // Insert linebreak after each comma
             var lastBreakIndex: Int?
             var index = firstArgumentIndex
-            while let commaIndex = self.index(of: .delimiter(","), in: index + 1 ..< endOfScope),
+            while let commaIndex = self.index(of: .delimiter(","), in: index ..< endOfScope),
                 var linebreakIndex = self.index(of: .nonSpaceOrComment, after: commaIndex) {
                 if let index = self.index(of: .nonSpace, before: linebreakIndex) {
                     linebreakIndex = index + 1
@@ -840,7 +840,7 @@ extension Formatter {
                     endOfScope += 1 + insertSpace(indent, at: breakIndex)
                     insertLinebreak(at: breakIndex)
                     lastBreakIndex = nil
-                    index = commaIndex
+                    index = commaIndex + 1
                     continue
                 }
                 if tokens[linebreakIndex].isLinebreak {
@@ -853,27 +853,115 @@ extension Formatter {
                 } else {
                     lastBreakIndex = linebreakIndex
                 }
-                index = commaIndex
+                index = commaIndex + 1
             }
             if maxWidth > 0, let breakIndex = lastBreakIndex, lineLength(at: breakIndex) > maxWidth {
                 insertSpace(indent, at: breakIndex)
                 insertLinebreak(at: breakIndex)
             }
         }
-        for scopeType in ["(", "[", "<"] {
-            forEach(.startOfScope(scopeType)) { i, _ in
-                guard let endOfScope = endOfScope(at: i) else {
-                    return
+
+        var lastIndex = -1
+
+        func nextStartOfScope() -> Int? {
+            return ((lastIndex + 1) ..< tokens.count)
+                .first(where: { ["(", "[", "<"].contains(tokens[$0].string) })
+        }
+
+        while let i = nextStartOfScope() {
+            guard let token = self.token(at: i),
+                ["(", "[", "<"].contains(token.string) else {
+                lastIndex = i
+                continue
+            }
+
+            guard let endOfScope = endOfScope(at: i) else {
+                return
+            }
+
+            let mode: WrapMode
+            var endOfScopeOnSameLine = false
+            switch token.string {
+            case "(":
+                guard index(of: .delimiter, in: i + 1 ..< endOfScope) != nil else {
+                    // Not an argument list, or only one argument
+                    lastIndex = i
+                    continue
                 }
 
+                func isParameterList() -> Bool {
+                    if last(.keyword, before: i) == .keyword("func"),
+                        let funcStartIndex = index(of: .keyword("func"), before: i),
+                        self.lastIndex(of: .endOfScope("}"), in: funcStartIndex ..< i) == nil {
+                        // Is parameters at start of function
+                        return true
+                    }
+
+                    let afterClosureParameterListTokens: [Token] = [.operator("->", .infix),
+                                                                    .keyword("throws"),
+                                                                    .keyword("rethrows")]
+
+                    let beforeClosureParameterListKeywords: [Token] = [.delimiter(":"),
+                                                                       .keyword("@escaping"),
+                                                                       .keyword("@noescape"),
+                                                                       .keyword("@autoclosure")]
+
+                    if let closureTypeDelimiterIndex = index(of: .delimiter(":"), before: i),
+                        range(closureTypeDelimiterIndex ..< i,
+                              doesNotContainsTokensExcept: beforeClosureParameterListKeywords,
+                              allowingWhitespaceAndComments: true),
+                        let tokenAfterParameterList = next(.nonSpaceOrCommentOrLinebreak, after: endOfScope),
+                        afterClosureParameterListTokens.contains(tokenAfterParameterList) {
+                        // Is parameter list for a closure type
+                        return true
+                    }
+
+                    return false
+                }
+
+                endOfScopeOnSameLine = options.closingParenOnSameLine
+                mode = isParameterList() ? options.wrapParameters : options.wrapArguments
+            case "<":
+                mode = options.wrapArguments
+            case "[":
+                mode = options.wrapCollections
+            default:
+                return
+            }
+            guard mode != .disabled, let firstIdentifierIndex =
+                index(of: .nonSpaceOrCommentOrLinebreak, after: i),
+                !isStringLiteral(at: i) else {
+                lastIndex = i
+                continue
+            }
+
+            if completePartialWrapping,
+                let firstLinebreakIndex = (i ..< endOfScope).first(where: { tokens[$0].isLinebreak }) {
+                switch mode {
+                case .beforeFirst:
+                    wrapArgumentsBeforeFirst(startOfScope: i,
+                                             endOfScope: endOfScope,
+                                             allowGrouping: firstIdentifierIndex > firstLinebreakIndex,
+                                             endOfScopeOnSameLine: endOfScopeOnSameLine)
+                case .preserve where firstIdentifierIndex > firstLinebreakIndex:
+                    wrapArgumentsBeforeFirst(startOfScope: i,
+                                             endOfScope: endOfScope,
+                                             allowGrouping: true,
+                                             endOfScopeOnSameLine: endOfScopeOnSameLine)
+                case .afterFirst, .preserve:
+                    wrapArgumentsAfterFirst(startOfScope: i,
+                                            endOfScope: endOfScope,
+                                            allowGrouping: true)
+                case .disabled, .default:
+                    assertionFailure() // Shouldn't happen
+                }
+
+            } else if maxWidth > 0 {
                 func willWrapAtStartOfReturnType(maxWidth: Int) -> Bool {
-                    return currentRule == FormatRules.wrap &&
-                        // Return type will only wrap if wrapping is part of wrap rule.
-                        isInReturnType(at: i) &&
-                        maxWidth < lineLength(at: i)
+                    return isInReturnType(at: i) && maxWidth < lineLength(at: i)
                 }
 
-                func startOfNextScope() -> Int? {
+                func startOfNextScopeNotInReturnType() -> Int? {
                     let endOfLine = self.endOfLine(at: i)
                     guard endOfScope < endOfLine else { return nil }
 
@@ -893,110 +981,23 @@ extension Formatter {
                     return startOfLastScopeOnLine
                 }
 
-                func lineLengthToNextWrap() -> Int {
-                    if currentRule == FormatRules.wrap {
-                        let startOfNextScopeOnLine = startOfNextScope()
-                        let nextNaturalWrap = indexWhereLineShouldWrap(from: endOfScope + 1)
+                func indexOfNextWrap() -> Int? {
+                    let startOfNextScopeOnLine = startOfNextScopeNotInReturnType()
+                    let nextNaturalWrap = indexWhereLineShouldWrap(from: endOfScope + 1)
 
-                        switch (startOfNextScopeOnLine, nextNaturalWrap) {
-                        case let (.some(startOfNextScopeOnLine), .some(nextNaturalWrap)):
-                            return min(lineLength(upTo: startOfNextScopeOnLine),
-                                       lineLength(upTo: nextNaturalWrap))
-                        case let (nil, .some(nextNaturalWrap)):
-                            return lineLength(upTo: nextNaturalWrap)
-                        case let (.some(startOfNextScopeOnLine), nil):
-                            return lineLength(upTo: startOfNextScopeOnLine)
-                        case (nil, nil):
-                            return lineLength(upTo: endOfScope)
-                        }
-
-                    } else {
-                        return lineLength(upTo: endOfScope)
+                    switch (startOfNextScopeOnLine, nextNaturalWrap) {
+                    case let (.some(startOfNextScopeOnLine), .some(nextNaturalWrap)):
+                        return min(startOfNextScopeOnLine, nextNaturalWrap)
+                    case let (nil, .some(nextNaturalWrap)):
+                        return nextNaturalWrap
+                    case let (.some(startOfNextScopeOnLine), nil):
+                        return startOfNextScopeOnLine
+                    case (nil, nil):
+                        return nil
                     }
                 }
 
-                func shouldWrapArguments() -> Bool {
-                    guard maxWidth > 0 else {
-                        return false
-                    }
-
-                    return maxWidth < lineLengthToNextWrap()
-                        && !willWrapAtStartOfReturnType(maxWidth: maxWidth)
-                }
-
-                let mode: WrapMode
-                var endOfScopeOnSameLine = false
-                switch scopeType {
-                case "(":
-                    guard index(of: .delimiter, in: i + 1 ..< endOfScope) != nil else {
-                        // Not an argument list, or only one argument
-                        return
-                    }
-
-                    func isParameterList() -> Bool {
-                        if last(.keyword, before: i) == .keyword("func"),
-                            let funcStartIndex = index(of: .keyword("func"), before: i),
-                            lastIndex(of: .endOfScope("}"), in: funcStartIndex ..< i) == nil {
-                            // Is parameters at start of function
-                            return true
-                        }
-
-                        let afterClosureParameterListTokens: [Token] = [.operator("->", .infix),
-                                                                        .keyword("throws"),
-                                                                        .keyword("rethrows")]
-
-                        let beforeClosureParameterListKeywords: [Token] = [.delimiter(":"),
-                                                                           .keyword("@escaping"),
-                                                                           .keyword("@noescape"),
-                                                                           .keyword("@autoclosure")]
-
-                        if let closureTypeDelimiterIndex = index(of: .delimiter(":"), before: i),
-                            range(closureTypeDelimiterIndex ..< i,
-                                  doesNotContainsTokensExcept: beforeClosureParameterListKeywords,
-                                  allowingWhitespaceAndComments: true),
-                            let tokenAfterParameterList = next(.nonSpaceOrCommentOrLinebreak, after: endOfScope),
-                            afterClosureParameterListTokens.contains(tokenAfterParameterList) {
-                            // Is parameter list for a closure type
-                            return true
-                        }
-
-                        return false
-                    }
-                    endOfScopeOnSameLine = options.closingParenOnSameLine
-                    mode = isParameterList() ? options.wrapParameters : options.wrapArguments
-                case "<":
-                    mode = options.wrapArguments
-                case "[":
-                    mode = options.wrapCollections
-                default:
-                    return
-                }
-                guard mode != .disabled, let firstIdentifierIndex =
-                    index(of: .nonSpaceOrCommentOrLinebreak, after: i),
-                    !isStringLiteral(at: i) else {
-                    return
-                }
-                if completePartialWrapping,
-                    let firstLinebreakIndex = (i ..< endOfScope).first(where: { tokens[$0].isLinebreak }) {
-                    switch mode {
-                    case .beforeFirst:
-                        wrapArgumentsBeforeFirst(startOfScope: i,
-                                                 endOfScope: endOfScope,
-                                                 allowGrouping: firstIdentifierIndex > firstLinebreakIndex,
-                                                 endOfScopeOnSameLine: endOfScopeOnSameLine)
-                    case .preserve where firstIdentifierIndex > firstLinebreakIndex:
-                        wrapArgumentsBeforeFirst(startOfScope: i,
-                                                 endOfScope: endOfScope,
-                                                 allowGrouping: true,
-                                                 endOfScopeOnSameLine: endOfScopeOnSameLine)
-                    case .afterFirst, .preserve:
-                        wrapArgumentsAfterFirst(startOfScope: i,
-                                                endOfScope: endOfScope,
-                                                allowGrouping: true)
-                    case .disabled, .default:
-                        assertionFailure() // Shouldn't happen
-                    }
-                } else if shouldWrapArguments() {
+                func wrapArgumentsWithoutPartialWrapping() {
                     if mode == .beforeFirst {
                         wrapArgumentsBeforeFirst(startOfScope: i,
                                                  endOfScope: endOfScope,
@@ -1008,7 +1009,22 @@ extension Formatter {
                                                 allowGrouping: true)
                     }
                 }
+
+                if currentRule == FormatRules.wrap {
+                    if let nextWrapIndex = indexOfNextWrap(),
+                        maxWidth < lineLength(from: max(lastIndex, 0), upTo: nextWrapIndex),
+                        !willWrapAtStartOfReturnType(maxWidth: maxWidth) {
+                        wrapArgumentsWithoutPartialWrapping()
+                        lastIndex = nextWrapIndex
+                        continue
+                    }
+
+                } else if maxWidth < lineLength(upTo: endOfScope) {
+                    wrapArgumentsWithoutPartialWrapping()
+                }
             }
+
+            lastIndex = i
         }
     }
 }

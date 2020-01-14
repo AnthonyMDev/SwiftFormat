@@ -8213,7 +8213,7 @@ class RulesTests: XCTestCase {
                        options: options)
     }
 
-    // MARK: wrapArguments --wrapCollections & --wrapArguments
+    // MARK: - wrapArguments --wrapCollections & --wrapArguments
 
     // MARK: beforeFirst maxWidth
 
@@ -8249,6 +8249,40 @@ class RulesTests: XCTestCase {
                                     maxWidth: 26)
         testFormatting(for: input, [output],
                        rules: [FormatRules.wrapArguments], options: options)
+    }
+
+    // MARK: - wrapArguments Multiple Wraps On Same Line
+
+    func testWrapAfterFirstWhenChainedFunctionAndThenArgumentsExceedMaxWidth() {
+        let input = """
+        foo.bar(baz: [qux, quux]).quuz([corge: grault], garply: waldo)
+        """
+        let output = """
+        foo.bar(baz: [qux, quux])
+            .quuz([corge: grault],
+                  garply: waldo)
+        """
+        let options = FormatOptions(wrapArguments: .afterFirst,
+                                    wrapCollections: .afterFirst,
+                                    maxWidth: 28)
+        testFormatting(for: input, [output],
+                       rules: [FormatRules.wrapArguments, FormatRules.wrap], options: options)
+    }
+
+    func testWrapAfterFirstWrapCollectionsBeforeFirstWhenChainedFunctionAndThenArgumentsExceedMaxWidth() {
+        let input = """
+        foo.bar(baz: [qux, quux]).quuz([corge: grault], garply: waldo)
+        """
+        let output = """
+        foo.bar(baz: [qux, quux])
+            .quuz([corge: grault],
+                  garply: waldo)
+        """
+        let options = FormatOptions(wrapArguments: .afterFirst,
+                                    wrapCollections: .beforeFirst,
+                                    maxWidth: 28)
+        testFormatting(for: input, [output],
+                       rules: [FormatRules.wrapArguments, FormatRules.wrap], options: options)
     }
 
     // MARK: - numberFormatting
